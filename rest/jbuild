@@ -1,0 +1,7 @@
+(library
+ ((name        bfx_rest)
+  (public_name bfx-rest)
+  (modules (bfx_rest))
+  (preprocess (pps (ppx_sexp_conv)))
+  (libraries (bfx core async yojson jsonm ocplib-json-typed
+                   bs-devkit cohttp-async nocrypto hex))))
