@@ -27,7 +27,7 @@ module Ev = struct
     fields: Yojson.Safe.json String.Map.t
   }
 
-  let create ~name ~fields () = { name; fields = String.Map.of_alist_exn fields }
+  let create ~name ~fields = { name; fields = String.Map.of_alist_exn fields }
 
   let of_yojson json =
     let equal = String.equal in
@@ -36,7 +36,7 @@ module Ev = struct
       create
         ~name:List.Assoc.(find_exn ~equal fields "event" |> Yojson.Safe.to_basic |> Yojson.Basic.Util.to_string)
         ~fields:List.Assoc.(remove ~equal fields "event")
-        () |> Result.return
+        |> Result.return
     | #Yojson.Safe.json as s -> Result.failf "%s" @@ Yojson.Safe.to_string s
 
   let to_yojson { name; fields } =
@@ -64,6 +64,8 @@ module Msg = struct
     chan: channel;
     pair: string;
   }
+
+  let create_chan_descr ~chan ~pair = { chan ; pair }
 
   type t = {
     chan: int;
