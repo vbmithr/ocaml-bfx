@@ -3,6 +3,13 @@
   (public_name bfx-ws)
   (modules (bfx_ws))
   (preprocess (pps (ppx_sexp_conv)))
-  (libraries (bfx core async yojson ocplib-json-typed
-                   bs-devkit cohttp-async nocrypto hex
-                   websocket-async))))
+  (libraries (bfx
+              core
+              async
+              yojson
+              ocplib-json-typed
+              bs-devkit
+              cohttp-async
+              nocrypto
+              hex
+              websocket-async))))
