@@ -397,7 +397,7 @@ let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?log ?to_ws () =
   let tcp_fun s r w =
     Socket.(setopt s Opt.nodelay true);
     begin if scheme = "https" || scheme = "wss" then
-        Conduit_async.ssl_connect ~version:Tlsv1_2 r w
+        Conduit_async_ssl.(ssl_connect (Ssl_config.configure ~version:Tlsv1_2 ()) r w)
       else return (r, w)
     end >>= fun (r, w) ->
     let ws_r, ws_w = Websocket_async.client_ez uri s r w in
