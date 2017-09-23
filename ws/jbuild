@@ -10,6 +10,6 @@
               ocplib-json-typed
               bs-devkit
               cohttp-async
-              nocrypto
+              digestif.c
               hex
               websocket-async))))

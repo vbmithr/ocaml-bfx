@@ -366,9 +366,9 @@ module Auth = struct
 end
 
 let sign ~key:apiKey ~secret =
-  let open Nocrypto in
+  let open Digestif.SHA384.Bytes in
   let payload = "AUTH" ^ Time_ns.(now () |> Time_ns.to_int_ns_since_epoch |> fun t -> t / 1_000_000 |> Int.to_string) in
-  let `Hex authSig = Hash.SHA384.hmac ~key:secret Cstruct.(of_string payload) |> Hex.of_cstruct in
+  let `Hex authSig = hmac ~key:secret payload |> Hex.of_string in
   Auth.create ~event:"auth" ~apiKey ~authSig ~authPayload:payload
 
 let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?log ?to_ws () =

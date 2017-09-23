@@ -96,7 +96,6 @@ end
 
 module Priv = struct
   let post_exn ?buf ?log ~key ~secret ~endp ~body () =
-    let open Nocrypto in
     Option.iter log ~f:(fun log -> Log.debug  log "-> %s" Yojson.Safe.(to_string ?buf body));
     let uri = Uri.with_path base_uri endp in
     let nonce = Time_ns.(now () |> to_int63_ns_since_epoch) |> Int63.to_string in
@@ -109,12 +108,12 @@ module Priv = struct
       | _ -> invalid_arg "bitfinex post body must be a json dict"
     in
     let body = Yojson.Safe.to_string ?buf payload in
-    let body_b64 = Base64.encode Cstruct.(of_string body) in
-    let signature = Hash.SHA384.hmac ~key:secret body_b64 in
-    let signature = Hex.of_cstruct signature in
+    let body_b64 = B64.encode body in
+    let signature =
+      Digestif.SHA384.Bytes.hmac ~key:secret body_b64 |> Hex.of_string in
     let headers = Cohttp.Header.of_list
         ["X-BFX-APIKEY", key;
-         "X-BFX-PAYLOAD", Cstruct.to_string body_b64;
+         "X-BFX-PAYLOAD", body_b64;
          "X-BFX-SIGNATURE", match signature with `Hex sign -> sign;
         ] in
     let body = Cohttp_async.Body.of_string body in

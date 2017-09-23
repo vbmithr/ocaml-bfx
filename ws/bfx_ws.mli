@@ -96,7 +96,7 @@ end
 
 val open_connection :
   ?buf:Bi_outbuf.t ->
-  ?auth:string * Cstruct.t ->
+  ?auth:string * string ->
   ?log:Log.t ->
   ?to_ws:Ev.t Pipe.Reader.t ->
   unit -> Yojson.Safe.json Pipe.Reader.t
