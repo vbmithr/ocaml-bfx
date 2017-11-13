@@ -37,7 +37,7 @@ module Sym = struct
       (fun { pair ; price_precision ; initial_margin ; minimum_margin ;
              maximum_order_size ; minimum_order_size ; expiration } ->
         (pair, price_precision, initial_margin, minimum_margin,
-         maximum_order_size, minimum_order_size, expiration))
+        maximum_order_size, minimum_order_size, expiration))
       (fun (pair, price_precision, initial_margin, minimum_margin,
         maximum_order_size, minimum_order_size, expiration) ->
        { pair ; price_precision ; initial_margin ; minimum_margin ;

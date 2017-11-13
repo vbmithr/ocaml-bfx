@@ -8,7 +8,6 @@
               async
               yojson
               ocplib-json-typed
-              bs-devkit
               cohttp-async
               digestif.c
               hex

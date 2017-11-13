@@ -100,3 +100,33 @@ val open_connection :
   ?log:Log.t ->
   ?to_ws:Ev.t Pipe.Reader.t ->
   unit -> Yojson.Safe.json Pipe.Reader.t
+
+module V2 : sig
+  module Info_message : sig
+    module Code : sig
+      type t =
+        | Please_reconnect
+        | Maintenance_start
+        | Maintenance_end
+    end
+
+    type t = {
+      code : Code.t ;
+      msg : string ;
+    }
+  end
+
+  type t =
+    | Version of float
+    | Info of Info_message.t
+    | Ping
+    | Pong
+  [@@deriving sexp]
+
+  val open_connection :
+    ?buf:Bi_outbuf.t ->
+    ?auth:string * string ->
+    ?log:Log.t ->
+    ?to_ws:t Pipe.Reader.t -> unit ->
+    t Pipe.Reader.t
+end

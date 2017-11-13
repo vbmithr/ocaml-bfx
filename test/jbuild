@@ -1,0 +1,6 @@
+(executable
+ ((name ws)
+  (public_name bfx-cli)
+  (package bfx-cli)
+  (preprocess (pps (ppx_sexp_conv)))
+  (libraries (bfx-ws))))

@@ -3,5 +3,12 @@
   (public_name bfx-rest)
   (modules (bfx_rest))
   (preprocess (pps (ppx_sexp_conv)))
-  (libraries (bfx core async yojson jsonm ocplib-json-typed
-                  bs-devkit cohttp-async base64 digestif.c hex))))
+  (libraries (bfx
+              core
+              async
+              yojson
+              ocplib-json-typed
+              cohttp-async
+              base64
+              digestif.c
+              hex))))
