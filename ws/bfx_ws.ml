@@ -1,23 +1,25 @@
 open Core
 open Async
 
+open Bs_devkit
 open Bfx
+
+let src = Logs.Src.create "bitfinex.ws"
+
+let pp_json ppf t = Yojson.Safe.pretty_print ppf t
+let pp_decode_error ppf t =
+  Json_encoding.print_error ?print_unknown:None ppf t
 
 module Yojson_encoding = struct
   include Json_encoding.Make(Json_repr.Yojson)
 
-  let destruct_safe encoding ?log value =
+  let destruct_safe encoding value =
     try destruct encoding value with exn ->
-      let value_str = Yojson.Safe.to_string value in
-      Option.iter log ~f:begin fun log ->
-        let error_s = Format.asprintf "%a"
-            (Json_encoding.print_error ?print_unknown:None) exn in
-        Log.error log "%s\n%s\n" value_str error_s
+      Logs.err ~src begin fun m ->
+        m "%a@.%a@." pp_json value pp_decode_error exn
       end ;
       raise exn
 end
-
-
 
 let float_of_json = function
   | `Int v -> Float.of_int v
@@ -56,6 +58,8 @@ module Ev = struct
 
   let to_yojson { name; fields } =
     `Assoc (("event", `String name) :: String.Map.(to_alist fields))
+
+  let pp ppf t = Yojson.Safe.pretty_print ppf (to_yojson t)
 end
 
 module Msg = struct
@@ -378,70 +382,69 @@ module Auth = struct
          (req "apiKey" string)
          (req "authSig" string)
          (req "authPayload" string))
+
+  let pp ppf t =
+    Yojson.Safe.pretty_print ppf (Yojson_encoding.construct encoding t)
 end
 
 let sign ~key:apiKey ~secret =
-  let open Digestif.SHA384.Bytes in
   let payload = "AUTH" ^ Time_ns.(now () |> Time_ns.to_int_ns_since_epoch |> fun t -> t / 1_000_000 |> Int.to_string) in
-  let `Hex authSig = hmac ~key:secret payload |> Hex.of_string in
+  let authSig = Digestif.SHA384.(hmac_string ~key:secret payload |> to_hex) in
   Auth.create ~event:"auth" ~apiKey ~authSig ~authPayload:payload
 
-let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?log ?to_ws () =
-    let uri_str = "https://api.bitfinex.com/ws/2" in
-    let uri = Uri.of_string uri_str in
-    let uri_str = Uri.to_string uri in
-    let host = Option.value_exn ~message:"no host in uri" Uri.(host uri) in
-    let port = Option.value_exn ~message:"no port inferred from scheme"
-        Uri_services.(tcp_port_of_uri uri)
-    in
-    let scheme = Option.value_exn ~message:"no scheme in uri" Uri.(scheme uri) in
+let uri =
+  Uri.make ~scheme:"https" ~host:"api.bitfinex.com" ~path:"ws/2" ()
+
+let addr = addr_of_uri uri
+
+let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?to_ws () =
     let cur_ws_w = ref None in
     Option.iter to_ws ~f:begin fun to_ws -> don't_wait_for @@
       Monitor.handle_errors (fun () ->
           Pipe.iter ~continue_on_error:true to_ws ~f:begin fun ev ->
             let ev_str = (ev |> Ev.to_yojson |> Yojson.Safe.to_string) in
-            Option.iter log ~f:(fun log -> Log.debug log "-> %s" ev_str);
+            Logs_async.debug ~src (fun m -> m "-> %a" Ev.pp ev) >>= fun () ->
             match !cur_ws_w with
             | None -> Deferred.unit
             | Some w -> Pipe.write_if_open w ev_str
           end
         )
-        (fun exn -> Option.iter log ~f:(fun log -> Log.error log "%s" @@ Exn.to_string exn))
+        (fun exn -> Logs.err ~src (fun m -> m "%a" Exn.pp exn))
     end;
     let client_r, client_w = Pipe.create () in
-    let tcp_fun s r w =
-      Socket.(setopt s Opt.nodelay true);
-      begin if scheme = "https" || scheme = "wss" then
-          Conduit_async_ssl.(ssl_connect (Ssl_config.configure ~version:Tlsv1_2 ()) r w)
-        else return (r, w)
-      end >>= fun (r, w) ->
-      let ws_r, ws_w = Websocket_async.client_ez uri s r w in
+    let tcp_fun (r, w) =
+      let ws_r, ws_w = Websocket_async.client_ez uri r w in
       cur_ws_w := Some ws_w;
       let cleanup () =
         Pipe.close_read ws_r;
         Deferred.all_unit [Reader.close r; Writer.close w]
       in
-      Option.iter log ~f:(fun log -> Log.info log "[WS] connecting to %s" uri_str);
+      Logs_async.info ~src (fun m -> m "connecting to %a" Uri.pp_hum uri) >>= fun () ->
       (* AUTH *)
       begin match auth with
         | None -> Deferred.unit
         | Some (key, secret) ->
           let auth = sign key secret in
           let auth_str = (Yojson_encoding.construct Auth.encoding auth |> Yojson.Safe.to_string) in
-          Option.iter log ~f:(fun log -> Log.debug log "-> %s" auth_str);
+          Logs_async.debug ~src (fun m -> m "-> %a" Auth.pp auth) >>= fun () ->
           Pipe.write ws_w auth_str
       end >>= fun () ->
       Monitor.protect ~finally:cleanup (fun () -> Pipe.transfer ws_r client_w ~f:(Yojson.Safe.from_string ~buf))
     in
     let rec loop () = begin
-      Monitor.try_with_or_error ~name:"BFX.Ws.with_connection"
-        (fun () -> Tcp.(with_connection (to_host_and_port host port) tcp_fun)) >>| function
-      | Ok () -> Option.iter log ~f:(fun log -> Log.error log "[WS] connection to %s terminated" uri_str)
-      | Error err -> Option.iter log ~f:(fun log -> Log.error  log "[WS] connection to %s raised %s" uri_str (Error.to_string_hum err))
+      Monitor.try_with_or_error ~name:"BFX.Ws.with_connection" begin fun () ->
+        addr >>= Conduit_async.V2.connect >>= tcp_fun
+      end >>= function
+      | Ok () ->
+        Logs_async.info ~src (fun m -> m "connection to %a terminated" Uri.pp_hum uri)
+      | Error err ->
+        Logs_async.err ~src begin fun m ->
+          m "connection to %a raised %a" Uri.pp_hum uri Error.pp err
+        end
     end >>= fun () ->
       if Pipe.is_closed client_r then Deferred.unit
       else begin
-        Option.iter log ~f:(fun log -> Log.error log "[WS] restarting connection to %s" uri_str);
+        Logs_async.err ~src (fun m -> m "restarting connection to %a" Uri.pp_hum uri) >>= fun () ->
         Clock_ns.after @@ Time_ns.Span.of_int_sec 10 >>= loop
       end
     in
@@ -450,6 +453,8 @@ let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?log ?to_ws () =
 
 
 module V2 = struct
+  let src = Logs.Src.create "bitfinex.ws2"
+
   let const_encoding str =
     Json_encoding.(string_enum [str, ()])
 
@@ -515,21 +520,23 @@ module V2 = struct
       let open Json_encoding in
       conv
         (fun _ -> failwith "Not implemented")
-        (fun (evt, code, msg) -> { code ; msg })
-        (obj3
-           (req "event" (const_encoding "info"))
-           (req "code" Code.encoding)
-           (req "msg" string))
+        (fun ((), (evt, code, msg)) -> { code ; msg })
+        (merge_objs unit
+           (obj3
+              (req "event" (const_encoding "info"))
+              (req "code" Code.encoding)
+              (req "msg" string)))
   end
 
   let version_encoding =
     let open Json_encoding in
     conv
       (fun _ -> failwith "Not implemented")
-      (fun (_evt, version) -> version)
-      (obj2
-         (req "event" (const_encoding "info"))
-         (req "version" float))
+      (fun ((), (_evt, version)) -> version)
+      (merge_objs unit
+         (obj2
+            (req "event" (const_encoding "info"))
+            (req "version" int)))
 
   let unit_event_encoding str =
     let open Json_encoding in
@@ -543,7 +550,7 @@ module V2 = struct
   let pong_encoding = unit_event_encoding "pong"
 
   type t =
-    | Version of float
+    | Version of int
     | Info of Info_message.t
     | Ping
     | Pong
@@ -566,11 +573,12 @@ module V2 = struct
         (fun () -> Pong) ;
     ]
 
-  let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?log ?to_ws () =
-    let uri_str = "https://api2.bitfinex.com:3000/ws" in
-    let uri = Uri.of_string uri_str in
-    let host = "api2.bitfinex.com" in
-    let port = 3000 in
+  let uri =
+    Uri.make ~scheme:"https" ~host:"api.bitfinex.com" ~path:"ws/2" ()
+
+  let addr = addr_of_uri uri
+
+  let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?to_ws () =
     let cur_ws_w = ref None in
     Option.iter to_ws ~f:begin fun to_ws ->
       don't_wait_for @@
@@ -579,25 +587,23 @@ module V2 = struct
             let msg_str =
               Yojson_encoding.construct encoding msg |>
               Yojson.Safe.to_string ~buf in
-            Option.iter log ~f:(fun log -> Log.debug log "-> %s" msg_str);
+            Logs_async.debug ~src (fun m -> m "-> %s" msg_str) >>= fun () ->
             match !cur_ws_w with
             | None -> Deferred.unit
             | Some w -> Pipe.write_if_open w msg_str
           end
         )
-        (fun exn -> Option.iter log ~f:(fun log -> Log.error log "%s" @@ Exn.to_string exn))
+        (fun exn -> Logs.err ~src (fun m -> m "%a" Exn.pp exn))
     end;
     let client_r, client_w = Pipe.create () in
-    let tcp_fun s r w =
-      Socket.(setopt s Opt.nodelay true);
-      Conduit_async_ssl.(ssl_connect (Ssl_config.configure ~version:Tlsv1_2 ()) r w) >>= fun (r, w) ->
-      let ws_r, ws_w = Websocket_async.client_ez uri s r w in
+    let tcp_fun (r, w) =
+      let ws_r, ws_w = Websocket_async.client_ez uri r w in
       cur_ws_w := Some ws_w;
       let cleanup () =
         Pipe.close_read ws_r;
         Deferred.all_unit [Reader.close r; Writer.close w]
       in
-      Option.iter log ~f:(fun log -> Log.info log "[WS] connecting to %s" uri_str);
+      Logs_async.info ~src (fun m -> m "connecting to %a" Uri.pp_hum uri) >>= fun () ->
       (* AUTH *)
       (* begin match auth with
        *   | None -> Deferred.unit
@@ -610,19 +616,24 @@ module V2 = struct
       Monitor.protect ~finally:cleanup begin fun () ->
         Pipe.transfer ws_r client_w ~f:begin fun str ->
           Yojson.Safe.from_string ~buf str |>
-          Yojson_encoding.destruct_safe encoding ?log
+          Yojson_encoding.destruct_safe encoding
         end
       end
     in
     let rec loop () = begin
-      Monitor.try_with_or_error ~name:"Bfx_ws.V2.open_connection"
-        (fun () -> Tcp.(with_connection (to_host_and_port host port) tcp_fun)) >>| function
-      | Ok () -> Option.iter log ~f:(fun log -> Log.error log "[WS] connection to %s terminated" uri_str)
-      | Error err -> Option.iter log ~f:(fun log -> Log.error  log "[WS] connection to %s raised %s" uri_str (Error.to_string_hum err))
+      Monitor.try_with_or_error ~name:"Bfx_ws.V2.open_connection" begin fun () ->
+        addr >>= Conduit_async.V2.connect >>= tcp_fun
+      end >>= function
+      | Ok () ->
+        Logs_async.info ~src (fun m -> m "connection to %a terminated" Uri.pp_hum uri)
+      | Error err ->
+        Logs_async.err ~src begin fun m ->
+          m "connection to %a raised %a" Uri.pp_hum uri Error.pp err
+        end
     end >>= fun () ->
       if Pipe.is_closed client_r then Deferred.unit
       else begin
-        Option.iter log ~f:(fun log -> Log.error log "[WS] restarting connection to %s" uri_str);
+        Logs_async.err ~src (fun m -> m "restarting connection to %a" Uri.pp_hum uri) >>= fun () ->
         Clock_ns.after @@ Time_ns.Span.of_int_sec 10 >>= loop
       end
     in

@@ -12,6 +12,9 @@ module Ev : sig
 
   val of_yojson :
     Yojson.Safe.json -> (t, string) Result.t
+
+  val pp :
+    Format.formatter -> t -> unit
 end
 
 module Msg : sig
@@ -97,7 +100,6 @@ end
 val open_connection :
   ?buf:Bi_outbuf.t ->
   ?auth:string * string ->
-  ?log:Log.t ->
   ?to_ws:Ev.t Pipe.Reader.t ->
   unit -> Yojson.Safe.json Pipe.Reader.t
 
@@ -117,7 +119,7 @@ module V2 : sig
   end
 
   type t =
-    | Version of float
+    | Version of int
     | Info of Info_message.t
     | Ping
     | Pong
@@ -126,7 +128,6 @@ module V2 : sig
   val open_connection :
     ?buf:Bi_outbuf.t ->
     ?auth:string * string ->
-    ?log:Log.t ->
     ?to_ws:t Pipe.Reader.t -> unit ->
     t Pipe.Reader.t
 end

@@ -1,7 +1,0 @@
-(library
- ((name        bfx)
-  (public_name bfx)
-  (modules (bfx))
-  (preprocess (pps (ppx_sexp_conv)))
-  (libraries (core
-              ocplib-json-typed))))

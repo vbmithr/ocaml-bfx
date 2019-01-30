@@ -110,11 +110,11 @@ module Priv = struct
     let body = Yojson.Safe.to_string ?buf payload in
     let body_b64 = B64.encode body in
     let signature =
-      Digestif.SHA384.Bytes.hmac ~key:secret body_b64 |> Hex.of_string in
+      Digestif.SHA384.(hmac_string ~key:secret body_b64 |> to_hex) in
     let headers = Cohttp.Header.of_list
         ["X-BFX-APIKEY", key;
          "X-BFX-PAYLOAD", body_b64;
-         "X-BFX-SIGNATURE", match signature with `Hex sign -> sign;
+         "X-BFX-SIGNATURE", signature;
         ] in
     let body = Cohttp_async.Body.of_string body in
     Client.post ~headers ~body uri >>= fun (resp, body) ->

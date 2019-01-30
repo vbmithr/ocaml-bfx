@@ -1,6 +1,7 @@
 open Core
 open Async
-open Log.Global
+
+let src = Logs.Src.create "bitfinex.cli"
 
 module Ws = Bfx_ws.V2
 
@@ -11,13 +12,6 @@ module Ws = Bfx_ws.V2
  *     List.Assoc.find_exn ~equal:String.equal cfg exchange in
  *   key, secret *)
 
-let base_spec =
-  let open Command.Spec in
-  empty
-  (* +> flag "-cfg" (optional_with_default default_cfg string) ~doc:"path Filepath of cfg (default: ~/.virtu)" *)
-  +> flag "-loglevel" (optional int) ~doc:"1-3 loglevel"
-  +> anon (sequence ("topic" %: string))
-
 let main () =
   (* let dft_log = Lazy.force log in *)
   let to_ws, to_ws_w = Pipe.create () in
@@ -26,7 +20,7 @@ let main () =
    *   Condition.wait connected >>= fun () ->
    *   Deferred.List.iter topics ~f:(fun t -> Pipe.write to_ws_w (Ws.Repr.Subscribe t))
    * end ; *)
-  let ws_r = Ws.open_connection ~log:(Lazy.force log) ~to_ws () in
+  let ws_r = Ws.open_connection ~to_ws () in
   let transfer_f msg =
       Format.asprintf "%a@." Sexplib.Sexp.pp_hum (Ws.sexp_of_t msg)
   in
@@ -34,16 +28,16 @@ let main () =
     Pipe.transfer ws_r Writer.(pipe @@ Lazy.force stderr) ~f:transfer_f
   ]
 
-let loglevel_of_int = function 2 -> `Info | 3 -> `Debug | _ -> `Error
-
 let cmd =
-  let run loglevel topics =
-    Option.iter loglevel ~f:(Fn.compose set_level loglevel_of_int);
-    (* let key, secret = find_auth cfg "PLNX" in *)
-    don't_wait_for @@ main ();
-    never_returns @@ Scheduler.go ()
-  in
-  Command.async ~summary:"BFX shell" base_spec run
+  Command.async ~summary:"BFX shell" begin
+    let open Command.Let_syntax in
+    [%map_open
+      let () = Logs_async_reporter.set_level_via_param None in
+      fun () ->
+        Logs.set_reporter (Logs_async_reporter.reporter ()) ;
+        main ()
+    ]
+  end
 
 let () =
   Command.run cmd
