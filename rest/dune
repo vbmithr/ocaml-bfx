@@ -4,6 +4,7 @@
  (modules bfx_rest)
  (preprocess (pps ppx_sexp_conv))
  (libraries
+  logs-async
   bfx
   core
   async

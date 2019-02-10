@@ -19,8 +19,7 @@ module Order : sig
     tif : tif ;
   }
 
-  val create_spec :
-    exchange:exchange -> kind:kind -> tif:tif -> spec
+  val create_spec : exchange -> kind -> tif -> spec
 end
 
 

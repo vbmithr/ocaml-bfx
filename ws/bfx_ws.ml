@@ -1,10 +1,9 @@
 open Core
 open Async
 
-open Bs_devkit
 open Bfx
 
-let src = Logs.Src.create "bitfinex.ws"
+let src = Logs.Src.create "bfx.ws"
 
 let pp_json ppf t = Yojson.Safe.pretty_print ppf t
 let pp_decode_error ppf t =
@@ -25,7 +24,7 @@ let float_of_json = function
   | `Int v -> Float.of_int v
   | `Float v -> v
   | `Intlit v -> Float.of_string v
-  | #Yojson.Safe.json as json ->
+  | #Yojson.Safe.t as json ->
     invalid_arg Printf.(sprintf "float_of_json: %s" Yojson.Safe.(to_string json))
 
 let bool_of_int = function
@@ -36,12 +35,12 @@ let bool_of_int = function
 let maybe_int = function
   | `Int i -> Some i
   | `Null -> None
-  | #Yojson.Safe.json -> invalid_arg "Ws.maybe_int"
+  | #Yojson.Safe.t -> invalid_arg "Ws.maybe_int"
 
 module Ev = struct
   type t = {
     name: string;
-    fields: Yojson.Safe.json String.Map.t
+    fields: Yojson.Safe.t String.Map.t
   }
 
   let create ~name ~fields = { name; fields = String.Map.of_alist_exn fields }
@@ -54,7 +53,7 @@ module Ev = struct
         ~name:List.Assoc.(find_exn ~equal fields "event" |> Yojson.Safe.to_basic |> Yojson.Basic.Util.to_string)
         ~fields:List.Assoc.(remove ~equal fields "event")
         |> Result.return
-    | #Yojson.Safe.json as s -> Result.failf "%s" @@ Yojson.Safe.to_string s
+    | #Yojson.Safe.t as s -> Result.failf "%s" @@ Yojson.Safe.to_string s
 
   let to_yojson { name; fields } =
     `Assoc (("event", `String name) :: String.Map.(to_alist fields))
@@ -88,14 +87,14 @@ module Msg = struct
 
   type t = {
     chan: int;
-    msg: Yojson.Safe.json list
+    msg: Yojson.Safe.t list
   }
 
   let create ~chan ~msg = { chan ; msg }
 
   let of_yojson = function
     | `List (`Int chan :: msg) -> create ~chan ~msg
-    | #Yojson.Safe.json -> invalid_arg "Msg.on_yojson"
+    | #Yojson.Safe.t -> invalid_arg "Msg.on_yojson"
 end
 
 module Ticker = struct
@@ -119,7 +118,8 @@ module Ticker = struct
   let of_yojson ~ts msg =
     match List.map msg ~f:float_of_json with
     | [ bid; bidSize; ask; askSize; dailyChg; dailyChgPct; last; vol; high; low] ->
-      create ts bid bidSize ask askSize dailyChg dailyChgPct last vol high low
+      {ts ; bid ; bidSize ; ask ; askSize ; dailyChg ;
+       dailyChgPct ; last ; vol ; high ; low }
     | _ -> invalid_arg "Ticker.of_yojson"
 end
 
@@ -231,7 +231,7 @@ module Priv = struct
         let status = match status with "ACTIVE" -> `Active | _ -> `Closed in
         let funding_type = match funding_type with 0 -> `Daily | _ -> `Term in
         create ~pair ~status ~amount ~base_price ~margin_funding ~funding_type
-      | #Yojson.Safe.json -> invalid_arg "Position.of_yojson"
+      | #Yojson.Safe.t -> invalid_arg "Position.of_yojson"
   end
 
   module Wallet = struct
@@ -257,7 +257,7 @@ module Priv = struct
         let interest_unsettled = float_of_json interest_unsettled in
         let name = name_of_string name in
         create ~name ~currency ~balance ~interest_unsettled
-      | #Yojson.Safe.json as json ->
+      | #Yojson.Safe.t as json ->
         invalid_arg Printf.(sprintf "Wallet.of_yojson %s" Yojson.Safe.(to_string json))
   end
 
@@ -324,7 +324,7 @@ module Priv = struct
         let oco = maybe_int oco in
         create ~id ~pair ~amount ~amount_orig ~spec
           ~status ~price ~avg_price ~created_at ~notify ~hidden ?oco ()
-      | #Yojson.Safe.json -> invalid_arg "Order.of_yojson"
+      | #Yojson.Safe.t -> invalid_arg "Order.of_yojson"
   end
 
   module Trade = struct
@@ -355,7 +355,7 @@ module Priv = struct
         let fee = float_of_json fee in
         create ~id ~pair ~ts ~order_id ~amount
           ~price ~spec ~order_price ~fee ~fee_currency
-      | #Yojson.Safe.json -> invalid_arg "Trade.of_yojson"
+      | #Yojson.Safe.t -> invalid_arg "Trade.of_yojson"
   end
 end
 
@@ -392,10 +392,8 @@ let sign ~key:apiKey ~secret =
   let authSig = Digestif.SHA384.(hmac_string ~key:secret payload |> to_hex) in
   Auth.create ~event:"auth" ~apiKey ~authSig ~authPayload:payload
 
-let uri =
+let url =
   Uri.make ~scheme:"https" ~host:"api.bitfinex.com" ~path:"ws/2" ()
-
-let addr = addr_of_uri uri
 
 let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?to_ws () =
     let cur_ws_w = ref None in
@@ -412,19 +410,19 @@ let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?to_ws () =
         (fun exn -> Logs.err ~src (fun m -> m "%a" Exn.pp exn))
     end;
     let client_r, client_w = Pipe.create () in
-    let tcp_fun (r, w) =
-      let ws_r, ws_w = Websocket_async.client_ez uri r w in
+    let tcp_fun (_, r, w) =
+      let ws_r, ws_w = Websocket_async.client_ez url r w in
       cur_ws_w := Some ws_w;
       let cleanup () =
         Pipe.close_read ws_r;
         Deferred.all_unit [Reader.close r; Writer.close w]
       in
-      Logs_async.info ~src (fun m -> m "connecting to %a" Uri.pp_hum uri) >>= fun () ->
+      Logs_async.info ~src (fun m -> m "connecting to %a" Uri.pp_hum url) >>= fun () ->
       (* AUTH *)
       begin match auth with
         | None -> Deferred.unit
         | Some (key, secret) ->
-          let auth = sign key secret in
+          let auth = sign ~key ~secret in
           let auth_str = (Yojson_encoding.construct Auth.encoding auth |> Yojson.Safe.to_string) in
           Logs_async.debug ~src (fun m -> m "-> %a" Auth.pp auth) >>= fun () ->
           Pipe.write ws_w auth_str
@@ -433,27 +431,26 @@ let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?to_ws () =
     in
     let rec loop () = begin
       Monitor.try_with_or_error ~name:"BFX.Ws.with_connection" begin fun () ->
-        addr >>= Conduit_async.V2.connect >>= tcp_fun
+        Conduit_async.V3.connect_uri url >>= tcp_fun
       end >>= function
       | Ok () ->
-        Logs_async.info ~src (fun m -> m "connection to %a terminated" Uri.pp_hum uri)
+        Logs_async.info ~src (fun m -> m "connection to %a terminated" Uri.pp_hum url)
       | Error err ->
         Logs_async.err ~src begin fun m ->
-          m "connection to %a raised %a" Uri.pp_hum uri Error.pp err
+          m "connection to %a raised %a" Uri.pp_hum url Error.pp err
         end
     end >>= fun () ->
       if Pipe.is_closed client_r then Deferred.unit
       else begin
-        Logs_async.err ~src (fun m -> m "restarting connection to %a" Uri.pp_hum uri) >>= fun () ->
+        Logs_async.err ~src (fun m -> m "restarting connection to %a" Uri.pp_hum url) >>= fun () ->
         Clock_ns.after @@ Time_ns.Span.of_int_sec 10 >>= loop
       end
     in
     don't_wait_for @@ loop ();
     client_r
 
-
 module V2 = struct
-  let src = Logs.Src.create "bitfinex.ws2"
+  let src = Logs.Src.create "bfx.ws2"
 
   let const_encoding str =
     Json_encoding.(string_enum [str, ()])
@@ -519,8 +516,8 @@ module V2 = struct
     let encoding =
       let open Json_encoding in
       conv
-        (fun _ -> failwith "Not implemented")
-        (fun ((), (evt, code, msg)) -> { code ; msg })
+        (fun _ -> invalid_arg "Not implemented")
+        (fun ((), (_evt, code, msg)) -> { code ; msg })
         (merge_objs unit
            (obj3
               (req "event" (const_encoding "info"))
@@ -531,7 +528,7 @@ module V2 = struct
   let version_encoding =
     let open Json_encoding in
     conv
-      (fun _ -> failwith "Not implemented")
+      (fun _ -> invalid_arg "Not implemented")
       (fun ((), (_evt, version)) -> version)
       (merge_objs unit
          (obj2
@@ -541,7 +538,7 @@ module V2 = struct
   let unit_event_encoding str =
     let open Json_encoding in
     conv
-      (fun _ -> failwith "Not implemented")
+      (fun _ -> invalid_arg "Not implemented")
       (fun _ -> ())
       (obj1
          (req "event" (const_encoding str)))
@@ -573,12 +570,10 @@ module V2 = struct
         (fun () -> Pong) ;
     ]
 
-  let uri =
+  let url =
     Uri.make ~scheme:"https" ~host:"api.bitfinex.com" ~path:"ws/2" ()
 
-  let addr = addr_of_uri uri
-
-  let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?to_ws () =
+  let open_connection ?(buf=Bi_outbuf.create 4096) ?auth:_ ?to_ws () =
     let cur_ws_w = ref None in
     Option.iter to_ws ~f:begin fun to_ws ->
       don't_wait_for @@
@@ -596,14 +591,14 @@ module V2 = struct
         (fun exn -> Logs.err ~src (fun m -> m "%a" Exn.pp exn))
     end;
     let client_r, client_w = Pipe.create () in
-    let tcp_fun (r, w) =
-      let ws_r, ws_w = Websocket_async.client_ez uri r w in
+    let tcp_fun (_, r, w) =
+      let ws_r, ws_w = Websocket_async.client_ez url r w in
       cur_ws_w := Some ws_w;
       let cleanup () =
         Pipe.close_read ws_r;
         Deferred.all_unit [Reader.close r; Writer.close w]
       in
-      Logs_async.info ~src (fun m -> m "connecting to %a" Uri.pp_hum uri) >>= fun () ->
+      Logs_async.info ~src (fun m -> m "connecting to %a" Uri.pp_hum url) >>= fun () ->
       (* AUTH *)
       (* begin match auth with
        *   | None -> Deferred.unit
@@ -622,18 +617,18 @@ module V2 = struct
     in
     let rec loop () = begin
       Monitor.try_with_or_error ~name:"Bfx_ws.V2.open_connection" begin fun () ->
-        addr >>= Conduit_async.V2.connect >>= tcp_fun
+        Conduit_async.V3.connect_uri url >>= tcp_fun
       end >>= function
       | Ok () ->
-        Logs_async.info ~src (fun m -> m "connection to %a terminated" Uri.pp_hum uri)
+        Logs_async.info ~src (fun m -> m "connection to %a terminated" Uri.pp_hum url)
       | Error err ->
         Logs_async.err ~src begin fun m ->
-          m "connection to %a raised %a" Uri.pp_hum uri Error.pp err
+          m "connection to %a raised %a" Uri.pp_hum url Error.pp err
         end
     end >>= fun () ->
       if Pipe.is_closed client_r then Deferred.unit
       else begin
-        Logs_async.err ~src (fun m -> m "restarting connection to %a" Uri.pp_hum uri) >>= fun () ->
+        Logs_async.err ~src (fun m -> m "restarting connection to %a" Uri.pp_hum url) >>= fun () ->
         Clock_ns.after @@ Time_ns.Span.of_int_sec 10 >>= loop
       end
     in

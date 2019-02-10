@@ -1,7 +1,5 @@
 open Core
 
-let exchange = "BITFINEX"
-
 module Side = struct
   type t = [`Buy | `Sell]
 
@@ -12,11 +10,6 @@ module Side = struct
       "sell", `Sell ;
     ]
 end
-
-let side_of_amount amount = match Float.sign_exn amount with
-  | Pos -> `Buy
-  | Neg -> `Sell
-  | Zero -> invalid_arg "side_of_amount"
 
 let time_to_sec t = Time_ns.to_int_ns_since_epoch t / 1_000_000_000
 let time_of_sec s = Time_ns.of_int_ns_since_epoch (s * 1_000_000_000)
@@ -44,5 +37,6 @@ module Order = struct
     tif : tif ;
   }
 
-  let create_spec ~exchange ~kind ~tif = { exchange ; kind ; tif }
+  let create_spec exchange kind tif =
+    { exchange ; kind ; tif }
 end

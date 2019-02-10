@@ -1,7 +1,7 @@
 open Core
 open Async
 
-let src = Logs.Src.create "bitfinex.cli"
+let src = Logs.Src.create "bfx.cli"
 
 module Ws = Bfx_ws.V2
 
@@ -14,7 +14,7 @@ module Ws = Bfx_ws.V2
 
 let main () =
   (* let dft_log = Lazy.force log in *)
-  let to_ws, to_ws_w = Pipe.create () in
+  let to_ws, _to_ws_w = Pipe.create () in
   (* let connected = Condition.create () in *)
   (* don't_wait_for begin
    *   Condition.wait connected >>= fun () ->
