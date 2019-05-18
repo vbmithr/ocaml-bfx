@@ -11,6 +11,7 @@
   async
   yojson
   ocplib-json-typed
+  async-uri
   cohttp-async
   digestif.c
   hex

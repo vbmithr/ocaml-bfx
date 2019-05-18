@@ -410,7 +410,7 @@ let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?to_ws () =
         (fun exn -> Logs.err ~src (fun m -> m "%a" Exn.pp exn))
     end;
     let client_r, client_w = Pipe.create () in
-    let tcp_fun (_, r, w) =
+    let tcp_fun (_sock, _conn, r, w) =
       let ws_r, ws_w = Websocket_async.client_ez url r w in
       cur_ws_w := Some ws_w;
       let cleanup () =
@@ -431,7 +431,7 @@ let open_connection ?(buf=Bi_outbuf.create 4096) ?auth ?to_ws () =
     in
     let rec loop () = begin
       Monitor.try_with_or_error ~name:"BFX.Ws.with_connection" begin fun () ->
-        Conduit_async.V3.connect_uri url >>= tcp_fun
+        Async_uri.connect url >>= tcp_fun
       end >>= function
       | Ok () ->
         Logs_async.info ~src (fun m -> m "connection to %a terminated" Uri.pp_hum url)
@@ -591,7 +591,7 @@ module V2 = struct
         (fun exn -> Logs.err ~src (fun m -> m "%a" Exn.pp exn))
     end;
     let client_r, client_w = Pipe.create () in
-    let tcp_fun (_, r, w) =
+    let tcp_fun (_sock, _conn, r, w) =
       let ws_r, ws_w = Websocket_async.client_ez url r w in
       cur_ws_w := Some ws_w;
       let cleanup () =
@@ -617,7 +617,7 @@ module V2 = struct
     in
     let rec loop () = begin
       Monitor.try_with_or_error ~name:"Bfx_ws.V2.open_connection" begin fun () ->
-        Conduit_async.V3.connect_uri url >>= tcp_fun
+        Async_uri.connect url >>= tcp_fun
       end >>= function
       | Ok () ->
         Logs_async.info ~src (fun m -> m "connection to %a terminated" Uri.pp_hum url)
