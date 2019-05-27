@@ -1,6 +1,7 @@
 open Core
 open Async
 
+open Bfx
 open Bfx_ws
 
 let src = Logs.Src.create "bfx.cli"

@@ -88,3 +88,32 @@ module Order = struct
   let create_spec exchange kind tif =
     { exchange ; kind ; tif }
 end
+
+module Pair = struct
+  type t = {
+    base: string ;
+    quote: string ;
+  } [@@deriving sexp]
+
+  let compare { base ; quote } { base = base' ; quote = quote' } =
+    match String.compare base base' with
+    | 0 -> String.compare quote quote'
+    | n -> n
+
+  let pp ppf { base ; quote } =
+    Format.fprintf ppf "t%s%s" base quote
+
+  let to_string { base ; quote } =
+    "t" ^ base ^ quote
+
+  let of_string s =
+    if String.length s <> 7 then None
+    else Some { base = String.sub s 1 3 ; quote = String.sub s 4 3 }
+
+  let of_string_exn s =
+    if String.length s <> 7 then invalid_arg "of_string_exn"
+    else { base = String.sub s 1 3 ; quote = String.sub s 4 3 }
+
+  let encoding =
+    Json_encoding.(conv to_string of_string_exn string)
+end

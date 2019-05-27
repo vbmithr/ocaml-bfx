@@ -48,3 +48,18 @@ module Order : sig
 
   val create_spec : exchange -> kind -> tif -> spec
 end
+
+module Pair : sig
+  type t = {
+    base: string ;
+    quote: string ;
+  }  [@@deriving sexp]
+
+  val compare : t -> t -> int
+
+  val pp : Format.formatter -> t -> unit
+  val to_string : t -> string
+  val of_string : string -> t option
+  val of_string_exn : string -> t
+  val encoding : t Json_encoding.encoding
+end

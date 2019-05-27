@@ -23,10 +23,7 @@
    async
    yojson
    ocplib-json-typed
-   cohttp-async
-   base64
-   digestif.c
-   hex))
+   fastrest))
 
 (library
  (name        bfx_ws)

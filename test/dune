@@ -1,6 +1,16 @@
+(test
+ (name       test)
+ (modules    test)
+ (preprocess (pps ppx_let ppx_sexp_conv))
+ (libraries
+  bfx-rest
+  alcotest-async
+  logs-async-reporter))
+
 (executable
  (name ws)
  (public_name bfx-cli)
+ (modules ws)
  (package bfx-cli)
  (preprocess (pps ppx_let ppx_sexp_conv))
  (libraries
