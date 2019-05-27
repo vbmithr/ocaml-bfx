@@ -11,7 +11,7 @@
  (name ws)
  (public_name bfx-cli)
  (modules ws)
- (package bfx-cli)
+ (package bfx-ws-async)
  (preprocess (pps ppx_let ppx_sexp_conv))
  (libraries
    logs-async-reporter
