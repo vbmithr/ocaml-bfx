@@ -18,17 +18,17 @@ module Sym : sig
   val get : unit -> t list Deferred.t
 end
 
-module Trades : sig
-  type t = {
-    ts: Time_ns.t;
-    price: float;
-    qty: float;
-    side: Side.t;
-  }
-
-  val encoding : t Json_encoding.encoding
-  val get_exn : ?start:Time_ns.t -> ?count:int -> string -> t list Deferred.t
-end
+(* module Trades : sig
+ *   type t = {
+ *     ts: Time_ns.t;
+ *     price: float;
+ *     qty: float;
+ *     side: Side.t;
+ *   }
+ * 
+ *   val encoding : t Json_encoding.encoding
+ *   val get_exn : ?start:Time_ns.t -> ?count:int -> string -> t list Deferred.t
+ * end *)
 
 module Order : sig
   val spec_encoding : Bfx.Order.spec Json_encoding.encoding
@@ -67,6 +67,6 @@ module Order : sig
       remaining_amount : float;
       executed_amount : float;
     }
-    val encoding : t Json_encoding.encoding
+    (* val encoding : t Json_encoding.encoding *)
   end
 end

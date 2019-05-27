@@ -3,7 +3,13 @@
  (public_name bfx)
  (modules bfx)
  (preprocess (pps ppx_sexp_conv))
- (libraries core ocplib-json-typed))
+ (libraries
+   sexplib
+   uuidm
+   ptime
+   logs
+   yojson
+   ocplib-json-typed))
 
 (library
  (name        bfx_rest)
@@ -11,16 +17,16 @@
  (modules bfx_rest)
  (preprocess (pps ppx_sexp_conv))
  (libraries
-  logs-async
-  bfx
-  core
-  async
-  yojson
-  ocplib-json-typed
-  cohttp-async
-  base64
-  digestif.c
-  hex))
+   logs-async
+   bfx
+   core
+   async
+   yojson
+   ocplib-json-typed
+   cohttp-async
+   base64
+   digestif.c
+   hex))
 
 (library
  (name        bfx_ws)
@@ -28,14 +34,23 @@
  (modules bfx_ws)
  (preprocess (pps ppx_sexp_conv))
  (libraries
-  bs-devkit
-  logs-async
-  bfx
-  core
-  async
-  yojson
-  ocplib-json-typed
-  async-uri
-  digestif.c
-  hex
-  fastws-async))
+   uuidm
+   ptime
+   bfx
+   yojson
+   ocplib-json-typed
+   async-uri))
+
+(library
+ (name        bfx_ws_async)
+ (public_name bfx-ws-async)
+ (modules bfx_ws_async)
+ (preprocess (pps ppx_sexp_conv))
+ (libraries
+   bfx
+   bfx-ws
+   logs-async
+   core
+   async
+   async-uri
+   fastws-async))

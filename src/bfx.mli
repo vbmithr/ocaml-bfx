@@ -1,4 +1,31 @@
-open Core
+module Yojson_encoding : sig
+  val construct : 't Json_encoding.encoding -> 't -> Json_repr.yojson
+  val destruct : 't Json_encoding.encoding -> Json_repr.yojson -> 't
+  val custom :
+    ('t -> Json_repr.yojson) ->
+    (Json_repr.yojson -> 't) ->
+    schema:Json_schema.schema -> 't Json_encoding.encoding
+  val destruct_safe : 'a Json_encoding.encoding -> Json_repr.yojson -> 'a
+end
+
+module Uuidm : sig
+  include module type of Uuidm
+    with type t = Uuidm.t
+
+  val t_of_sexp : Sexplib.Sexp.t -> Uuidm.t
+  val sexp_of_t : Uuidm.t -> Sexplib.Sexp.t
+  val encoding : t Json_encoding.encoding
+end
+
+module Ptime : sig
+  include module type of Ptime
+    with type t = Ptime.t
+     and type span = Ptime.span
+
+  val t_of_sexp : Sexplib.Sexp.t -> Ptime.t
+  val sexp_of_t : Ptime.t -> Sexplib.Sexp.t
+  val encoding : t Json_encoding.encoding
+end
 
 module Side : sig
   type t = [`Buy | `Sell]
@@ -21,11 +48,3 @@ module Order : sig
 
   val create_spec : exchange -> kind -> tif -> spec
 end
-
-
-
-val time_to_sec : Time_ns.t -> int
-val time_of_sec : int -> Time_ns.t
-
-val time_encoding : Time_ns.t Json_encoding.encoding
-val fstring_encoding : float Json_encoding.encoding

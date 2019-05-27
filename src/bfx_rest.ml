@@ -61,38 +61,38 @@ module Sym = struct
     | Ok #Yojson.Safe.t -> invalid_arg "get_syms"
 end
 
-module Trades = struct
-  type t = {
-    ts: Time_ns.t;
-    price: float;
-    qty: float;
-    side: Side.t;
-  }
-
-  let encoding =
-    let open Json_encoding in
-    conv
-      (fun { ts ; price ; qty ; side } -> ((), (ts, price, qty, side)))
-      (fun ((), (ts, price, qty, side)) -> { ts ; price ; qty ; side })
-      (merge_objs unit
-         (obj4
-            (req "timestamp" time_encoding)
-            (req "price" fstring_encoding)
-            (req "amount" fstring_encoding)
-            (req "type" Side.encoding)))
-
-  let get_exn ?(start=Time_ns.epoch) ?(count=50) pair =
-    let q = [
-      "timestamp", time_to_sec start |> Int.to_string;
-      "limit_trades", Int.to_string count;
-    ] in
-    let uri = Uri.(with_query' (with_path base_url @@ "/v1/trades/" ^ pair) q) in
-    Logs_async.debug ~src (fun m -> m "GET %a" Uri.pp_hum uri) >>= fun () ->
-    Client.get uri >>= handle_rest_call >>| function
-    | Error exn -> raise exn
-    | Ok (`List ts) -> List.rev_map ts ~f:(Yojson_encoding.destruct encoding)
-    | Ok #Yojson.Safe.t -> invalid_arg "Rest.Trades.get"
-end
+(* module Trades = struct
+ *   type t = {
+ *     ts: Time_ns.t;
+ *     price: float;
+ *     qty: float;
+ *     side: Side.t;
+ *   }
+ * 
+ *   let encoding =
+ *     let open Json_encoding in
+ *     conv
+ *       (fun { ts ; price ; qty ; side } -> ((), (ts, price, qty, side)))
+ *       (fun ((), (ts, price, qty, side)) -> { ts ; price ; qty ; side })
+ *       (merge_objs unit
+ *          (obj4
+ *             (req "timestamp" time_encoding)
+ *             (req "price" fstring_encoding)
+ *             (req "amount" fstring_encoding)
+ *             (req "type" Side.encoding)))
+ * 
+ *   let get_exn ?(start=Time_ns.epoch) ?(count=50) pair =
+ *     let q = [
+ *       "timestamp", time_to_sec start |> Int.to_string;
+ *       "limit_trades", Int.to_string count;
+ *     ] in
+ *     let uri = Uri.(with_query' (with_path base_url @@ "/v1/trades/" ^ pair) q) in
+ *     Logs_async.debug ~src (fun m -> m "GET %a" Uri.pp_hum uri) >>= fun () ->
+ *     Client.get uri >>= handle_rest_call >>| function
+ *     | Error exn -> raise exn
+ *     | Ok (`List ts) -> List.rev_map ts ~f:(Yojson_encoding.destruct encoding)
+ *     | Ok #Yojson.Safe.t -> invalid_arg "Rest.Trades.get"
+ * end *)
 
 let pp_json ppf t =
   Yojson.Safe.pretty_print ppf t
@@ -195,37 +195,37 @@ module Order = struct
       executed_amount: float;
     }
 
-    let encoding =
-      let open Json_encoding in
-      conv
-        (fun _ -> invalid_arg "Response.encoding: Not implemented")
-        (fun ((), ((id, symbol, price, avg_execution_price, side,
-                    spec, ts, is_live, is_canceled, is_hidden),
-                   (oco_order, was_forced, original_amount, remaining_amount,
-                    executed_amount))) -> {
-            id ; symbol ; price ; avg_execution_price ; side ; spec ;
-            ts ; is_live ; is_hidden ; is_canceled ; oco_order ;
-            was_forced ; original_amount ; remaining_amount ;
-            executed_amount })
-        (merge_objs unit
-           (merge_objs
-              (obj10
-                 (req "id" int)
-                 (req "symbol" string)
-                 (req "price" fstring_encoding)
-                 (req "avg_execution_price" fstring_encoding)
-                 (req "side" Side.encoding)
-                 (req "type" spec_encoding)
-                 (req "timestamp" time_encoding)
-                 (req "is_live" bool)
-                 (req "is_cancelled" bool)
-                 (req "is_hidden" bool)
-              )
-              (obj5
-                 (req "oco_order" (option int))
-                 (req "was_forced" bool)
-                 (req "original_amount" fstring_encoding)
-                 (req "remaining_amount" fstring_encoding)
-                 (req "executed_amount" fstring_encoding))))
+    (* let encoding =
+     *   let open Json_encoding in
+     *   conv
+     *     (fun _ -> invalid_arg "Response.encoding: Not implemented")
+     *     (fun ((), ((id, symbol, price, avg_execution_price, side,
+     *                 spec, ts, is_live, is_canceled, is_hidden),
+     *                (oco_order, was_forced, original_amount, remaining_amount,
+     *                 executed_amount))) -> {
+     *         id ; symbol ; price ; avg_execution_price ; side ; spec ;
+     *         ts ; is_live ; is_hidden ; is_canceled ; oco_order ;
+     *         was_forced ; original_amount ; remaining_amount ;
+     *         executed_amount })
+     *     (merge_objs unit
+     *        (merge_objs
+     *           (obj10
+     *              (req "id" int)
+     *              (req "symbol" string)
+     *              (req "price" fstring_encoding)
+     *              (req "avg_execution_price" fstring_encoding)
+     *              (req "side" Side.encoding)
+     *              (req "type" spec_encoding)
+     *              (req "timestamp" time_encoding)
+     *              (req "is_live" bool)
+     *              (req "is_cancelled" bool)
+     *              (req "is_hidden" bool)
+     *           )
+     *           (obj5
+     *              (req "oco_order" (option int))
+     *              (req "was_forced" bool)
+     *              (req "original_amount" fstring_encoding)
+     *              (req "remaining_amount" fstring_encoding)
+     *              (req "executed_amount" fstring_encoding)))) *)
   end
 end
