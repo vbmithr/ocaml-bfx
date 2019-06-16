@@ -59,6 +59,7 @@ module Pair : sig
 
   val pp : Format.formatter -> t -> unit
   val to_string : t -> string
+  val to_string_noprefix : t -> string
   val of_string : string -> t option
   val of_string_exn : string -> t
   val encoding : t Json_encoding.encoding

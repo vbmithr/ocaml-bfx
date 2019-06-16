@@ -106,6 +106,8 @@ module Pair = struct
   let to_string { base ; quote } =
     "t" ^ base ^ quote
 
+  let to_string_noprefix { base ; quote } = base ^ quote
+
   let of_string s =
     if String.length s <> 7 then None
     else Some { base = String.sub s 1 3 ; quote = String.sub s 4 3 }
