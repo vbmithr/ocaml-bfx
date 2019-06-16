@@ -14,8 +14,8 @@ let process_user_cmd w =
       Pipe.write w (Ping cid)
     | ["trades" ; symbol ] ->
       Pipe.write w (Subscribe (Trades (Pair.of_string_exn symbol)))
-    | ["book" ; symbol ] ->
-      Pipe.write w (Subscribe (Book (Pair.of_string_exn symbol, `Level25)))
+    | ["quotes" ; symbol ] ->
+      Pipe.write w (Subscribe (Quotes (Pair.of_string_exn symbol)))
     | h :: _ ->
       Logs_async.err (fun m -> m "Unknown command %s" h)
     | [] ->

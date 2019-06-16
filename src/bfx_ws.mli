@@ -26,7 +26,7 @@ type version = {
 
 type feed =
   | Trades of Pair.t
-  | Book of Pair.t * [`Level25 | `Level100]
+  | Quotes of Pair.t
 [@@deriving sexp]
 
 module Trade : sig
@@ -40,7 +40,7 @@ module Trade : sig
   val encoding : t Json_encoding.encoding
 end
 
-module Book : sig
+module Quote : sig
   type t = {
     id: int64 ;
     price: float ;
@@ -60,8 +60,8 @@ type t =
   | Heartbeat of int
   | TradesSnap of int * Trade.t list
   | Trade of int * [`Executed | `Updated] * Trade.t
-  | BookSnap of int * Book.t list
-  | Book of int * Book.t
+  | QuotesSnap of int * Quote.t list
+  | Quote of int * Quote.t
 [@@deriving sexp]
 
 val encoding : t Json_encoding.encoding

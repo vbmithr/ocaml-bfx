@@ -87,7 +87,7 @@ let pong_encoding =
 
 type feed =
   | Trades of Pair.t
-  | Book of Pair.t * [`Level25 | `Level100]
+  | Quotes of Pair.t
 [@@deriving sexp]
 
 let trades_encoding =
@@ -99,25 +99,16 @@ let trades_encoding =
        (req "channel" (constant "trades"))
        (req "symbol" (Pair.encoding)))
 
-let lvl_encoding =
+let quotes_encoding =
   let open Json_encoding in
   conv
-    (function `Level25 -> "25" | `Level100 -> "100")
-    (function "25" -> `Level25 | _ -> `Level100)
-    string
-
-let book_encoding =
-  let open Json_encoding in
-  conv
-    (function (p, len) -> ((), (), (), p, "", len))
-    (fun ((), (), (), p, _, len) -> (p, len))
-    (obj6
+    (function p -> ((), (), p, ()))
+    (fun ((), (), p, _) -> p)
+    (obj4
        (req "channel" (constant "book"))
        (req "prec" (constant "R0"))
-       (req "freq" (constant "F0"))
        (req "symbol" (Pair.encoding))
-       (req "pair" string)
-       (req "len" lvl_encoding))
+       (req "len" (constant "100")))
 
 let feed_encoding =
   let open Json_encoding in
@@ -125,9 +116,9 @@ let feed_encoding =
     case trades_encoding
       (function Trades i -> Some i | _ -> None)
       (fun i -> Trades i) ;
-    case book_encoding
-      (function Book (s, len) -> Some (s, len) | _ -> None)
-      (fun (s, len) -> Book (s, len)) ;
+    case quotes_encoding
+      (function Quotes s -> Some s | _ -> None)
+      (fun s -> Quotes s) ;
   ]
 
 let subscribe_encoding =
@@ -141,9 +132,9 @@ let sub_encoding =
     case (merge_objs unit trades_encoding)
       (function Trades i -> Some ((), i) | _ -> None)
       (fun ((), t) -> Trades t) ;
-    case (merge_objs unit book_encoding)
-      (function Book (p, len) -> Some ((), (p, len)) | _ -> None)
-      (fun ((), (p, len)) -> Book (p, len))
+    case (merge_objs unit quotes_encoding)
+      (function Quotes p -> Some ((), p) | _ -> None)
+      (fun ((), p) -> Quotes p)
   ]
 
 let subscribed_encoding =
@@ -177,7 +168,7 @@ let trade_snap_encoding =
   let open Json_encoding in
   tup2 int (list Trade.encoding)
 
-module Book = struct
+module Quote = struct
   type t = {
     id: int64 ;
     price: float ;
@@ -192,9 +183,9 @@ module Book = struct
       (tup3 int53 float float)
 end
 
-let book_snap_encoding =
+let quotes_snap_encoding =
   let open Json_encoding in
-  tup2 int (list Book.encoding)
+  tup2 int (list Quote.encoding)
 
 let hb_encoding =
   let open Json_encoding in
@@ -212,9 +203,9 @@ let trade_encoding =
   let open Json_encoding in
   (tup3 int trade_update_typ_encoding Trade.encoding)
 
-let book_encoding =
+let quote_encoding =
   let open Json_encoding in
-  tup2 int Book.encoding
+  tup2 int Quote.encoding
 
 type t =
   | Version of version
@@ -226,8 +217,8 @@ type t =
   | Heartbeat of int
   | TradesSnap of int * Trade.t list
   | Trade of int * [`Executed | `Updated] * Trade.t
-  | BookSnap of int * Book.t list
-  | Book of int * Book.t
+  | QuotesSnap of int * Quote.t list
+  | Quote of int * Quote.t
 [@@deriving sexp]
 
 let encoding =
@@ -260,10 +251,10 @@ let encoding =
     case trade_encoding
       (function Trade (chanId, typ, t) -> Some (chanId, typ, t) | _ -> None)
       (fun (chanId, typ, t) -> Trade (chanId, typ, t)) ;
-    case book_snap_encoding
-      (function BookSnap (chanId, trades) -> Some (chanId, trades) | _ -> None)
-      (fun (chanId, trades) -> BookSnap (chanId, trades)) ;
-    case book_encoding
-      (function Book (chanId, quote) -> Some (chanId, quote) | _ -> None)
-      (fun (chanId, quote) -> Book (chanId, quote)) ;
+    case quotes_snap_encoding
+      (function QuotesSnap (chanId, trades) -> Some (chanId, trades) | _ -> None)
+      (fun (chanId, trades) -> QuotesSnap (chanId, trades)) ;
+    case quote_encoding
+      (function Quote (chanId, quote) -> Some (chanId, quote) | _ -> None)
+      (fun (chanId, quote) -> Quote (chanId, quote)) ;
   ]
