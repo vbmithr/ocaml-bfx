@@ -62,5 +62,6 @@ module Pair : sig
   val to_string_noprefix : t -> string
   val of_string : string -> t option
   val of_string_exn : string -> t
+  val of_string_noprefix_exn : string -> t
   val encoding : t Json_encoding.encoding
 end

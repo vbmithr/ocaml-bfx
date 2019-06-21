@@ -106,6 +106,11 @@ module Pair = struct
   let to_string { base ; quote } =
     "t" ^ base ^ quote
 
+  let of_string_noprefix_exn s =
+    try
+      { base = String.sub s 0 3 ; quote = String.sub s 3 3 }
+    with _ -> invalid_arg "Pair.of_string_noprefix_exn"
+
   let to_string_noprefix { base ; quote } = base ^ quote
 
   let of_string s =
