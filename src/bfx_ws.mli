@@ -1,9 +1,5 @@
 open Bfx
 
-type error =
-  | Unknown_event
-  | Unknown_pair
-
 module Info_message : sig
   module Code : sig
     type t =
@@ -50,13 +46,21 @@ module Quote : sig
   val encoding : t Json_encoding.encoding
 end
 
+type error = {
+  code: int ;
+  msg: string ;
+} [@@deriving sexp]
+
 type t =
   | Version of version
+  | Error of error
   | Info of Info_message.t
   | Ping of int32
   | Pong of int32 * Ptime.t
   | Subscribe of feed
+  | Unsubscribe of int
   | Subscribed of int * feed
+  | Unsubscribed of int
   | Heartbeat of int
   | TradesSnap of int * Trade.t list
   | Trade of int * [`Executed | `Updated] * Trade.t

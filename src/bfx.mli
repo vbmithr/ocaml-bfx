@@ -55,6 +55,7 @@ module Pair : sig
     quote: string ;
   }  [@@deriving sexp]
 
+  val hash : t -> int
   val compare : t -> t -> int
 
   val pp : Format.formatter -> t -> unit

@@ -1,10 +1,6 @@
 open Sexplib.Std
 open Bfx
 
-type error =
-  | Unknown_event
-  | Unknown_pair
-
 module Info_message = struct
   module Code = struct
     type t =
@@ -126,6 +122,13 @@ let subscribe_encoding =
   conv (fun a -> (), a) (fun ((), a) -> a)
     (merge_objs (obj1 (req "event" (constant "subscribe"))) feed_encoding)
 
+let unsubscribe_encoding =
+  let open Json_encoding in
+  conv (fun a -> (), a) (fun ((), a) -> a)
+    (obj2
+       (req "event" (constant "unsubscribe"))
+       (req "chanId" int))
+
 let sub_encoding =
   let open Json_encoding in
   union [
@@ -147,6 +150,16 @@ let subscribed_encoding =
           (req "event" (constant "subscribed"))
           (req "chanId" int))
        sub_encoding)
+
+let unsubscribed_encoding =
+  let open Json_encoding in
+  conv
+    (fun chanId -> ((), (), chanId))
+    (fun ((), (), chanId) -> chanId)
+    (obj3
+       (req "event" (constant "unsubscribed"))
+       (req "status" (constant "OK"))
+       (req "chanId" int))
 
 module Trade = struct
   type t = {
@@ -207,13 +220,32 @@ let quote_encoding =
   let open Json_encoding in
   tup2 int Quote.encoding
 
+type error = {
+  code: int ;
+  msg: string ;
+} [@@deriving sexp]
+
+let error_encoding =
+  let open Json_encoding in
+  conv
+    (fun { code; msg } -> (), ((), msg, code))
+    (fun ((), ((), msg, code)) -> { code ; msg })
+    (merge_objs unit
+       (obj3
+          (req "event" (constant "error"))
+          (req "msg" string)
+          (req "code" int)))
+
 type t =
   | Version of version
+  | Error of error
   | Info of Info_message.t
   | Ping of int32
   | Pong of int32 * Ptime.t
   | Subscribe of feed
+  | Unsubscribe of int
   | Subscribed of int * feed
+  | Unsubscribed of int
   | Heartbeat of int
   | TradesSnap of int * Trade.t list
   | Trade of int * [`Executed | `Updated] * Trade.t
@@ -224,6 +256,9 @@ type t =
 let encoding =
   let open Json_encoding in
   union [
+    case error_encoding
+      (function Error e -> Some e | _ -> None)
+      (fun e -> Error e) ;
     case version_encoding
       (function Version i -> Some i | _ -> None)
       (fun i -> Version i) ;
@@ -239,9 +274,15 @@ let encoding =
     case subscribe_encoding
       (function Subscribe a -> Some a | _ -> None)
       (fun a -> Subscribe a) ;
+    case unsubscribe_encoding
+      (function Unsubscribe a -> Some a | _ -> None)
+      (fun a -> Unsubscribe a) ;
     case subscribed_encoding
       (function Subscribed (chanId, feed) -> Some (chanId, feed) | _ -> None)
       (fun (chanId, feed) -> Subscribed (chanId, feed)) ;
+    case unsubscribed_encoding
+      (function Unsubscribed a -> Some a | _ -> None)
+      (fun a -> Unsubscribed a) ;
     case hb_encoding
       (function Heartbeat chanId -> Some chanId | _ -> None)
       (fun chanId -> Heartbeat chanId) ;
