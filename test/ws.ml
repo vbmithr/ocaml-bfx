@@ -40,7 +40,9 @@ let main () =
         end
       end
     ]
-  end
+  end >>= function
+  | Error _ -> failwith "error"
+  | Ok () -> Deferred.unit
 
 let cmd =
   Command.async ~summary:"BFX shell" begin

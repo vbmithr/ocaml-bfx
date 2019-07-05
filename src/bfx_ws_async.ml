@@ -16,22 +16,24 @@ let connect ?buf v =
   let url = match v with
     | `Public -> public_url
     | `Private -> url in
-  Fastws_async.connect_ez url >>= fun (r, w, cleaned_up) ->
-  let client_read = Pipe.map r ~f:begin fun msg ->
-      Yojson_encoding.destruct_safe encoding
-        (Yojson.Safe.from_string ?buf msg)
-    end in
-  let ws_read, client_write = Pipe.create () in
-  don't_wait_for
-    (Pipe.closed client_write >>| fun () -> Pipe.close w) ;
-  don't_wait_for @@
-  Pipe.transfer ws_read w ~f:begin fun cmd ->
-    let doc = Yojson.Safe.to_string ?buf
-        (Yojson_encoding.construct encoding cmd) in
-    Log.debug (fun m -> m "-> %s" doc) ;
-    doc
-  end ;
-  return (client_read, client_write, cleaned_up)
+  Fastws_async.connect_ez url >>|
+  Result.map ~f:begin fun (r, w, cleaned_up) ->
+    let client_read = Pipe.map r ~f:begin fun msg ->
+        Yojson_encoding.destruct_safe encoding
+          (Yojson.Safe.from_string ?buf msg)
+      end in
+    let ws_read, client_write = Pipe.create () in
+    don't_wait_for
+      (Pipe.closed client_write >>| fun () -> Pipe.close w) ;
+    don't_wait_for @@
+    Pipe.transfer ws_read w ~f:begin fun cmd ->
+      let doc = Yojson.Safe.to_string ?buf
+          (Yojson_encoding.construct encoding cmd) in
+      Log.debug (fun m -> m "-> %s" doc) ;
+      doc
+    end ;
+    (client_read, client_write, cleaned_up)
+  end
 
 let with_connection ?buf v f =
   let url = match v with
