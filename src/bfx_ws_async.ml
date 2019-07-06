@@ -35,6 +35,12 @@ let connect ?buf v =
     (client_read, client_write, cleaned_up)
   end
 
+let connect_exn ?buf v =
+  connect ?buf v >>= function
+  | Error `Internal exn -> raise exn
+  | Error `WS e -> Fastws_async.raise_error e
+  | Ok a -> return a
+
 let with_connection ?buf v f =
   let url = match v with
     | `Public -> public_url
@@ -54,3 +60,10 @@ let with_connection ?buf v f =
     end ;
     f client_read client_write
   end
+
+let with_connection_exn ?buf v f =
+  with_connection ?buf v f >>= function
+  | Error `Internal exn -> raise exn
+  | Error `User_callback exn -> raise exn
+  | Error `WS e -> Fastws_async.raise_error e
+  | Ok a -> return a
