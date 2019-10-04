@@ -18,4 +18,4 @@ module Ticker : sig
 end
 
 val tickers :
-  (Fastrest.form, (Pair.t * Ticker.t) option list, unit) Fastrest.service
+  (Fastrest.form, (Pair.t * Ticker.t) option list) Fastrest.service
