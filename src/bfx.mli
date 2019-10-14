@@ -28,25 +28,22 @@ module Ptime : sig
 end
 
 module Side : sig
-  type t = [`Buy | `Sell]
+  type t = Fixtypes.Side.t
 
   val encoding : t Json_encoding.encoding
 end
 
 module Order : sig
-  type kind = [`Market | `Limit | `Stop]
-  type tif = [`Day | `Good_till_canceled | `Fill_or_kill]
-  type status = [`Open | `Filled | `Partially_filled | `Canceled]
-
   type exchange = Margin | Exchange
 
   type spec = {
     exchange : exchange ;
-    kind : kind ;
-    tif : tif ;
+    kind : Fixtypes.OrdType.t ;
+    tif : Fixtypes.TimeInForce.t ;
   }
 
-  val create_spec : exchange -> kind -> tif -> spec
+  val create_spec :
+    exchange -> Fixtypes.OrdType.t -> Fixtypes.TimeInForce.t -> spec
 end
 
 module Pair : sig

@@ -60,29 +60,25 @@ module Ptime = struct
 end
 
 module Side = struct
-  type t = [`Buy | `Sell]
+  type t = Fixtypes.Side.t
 
   let encoding =
     let open Json_encoding in
     string_enum [
-      "buy", `Buy ;
-      "sell", `Sell ;
+      "buy", Fixtypes.Side.Buy ;
+      "sell", Sell ;
     ]
 end
 
 module Order = struct
-  type kind = [`Market | `Limit | `Stop]
-  type tif = [`Day | `Good_till_canceled | `Fill_or_kill]
-  type status = [`Open | `Filled | `Partially_filled | `Canceled]
-
   type exchange =
     | Margin
     | Exchange
 
   type spec = {
     exchange : exchange ;
-    kind : kind ;
-    tif : tif ;
+    kind : Fixtypes.OrdType.t ;
+    tif : Fixtypes.TimeInForce.t ;
   }
 
   let create_spec exchange kind tif =
