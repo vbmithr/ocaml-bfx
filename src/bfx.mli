@@ -52,6 +52,10 @@ module Pair : sig
     quote: string ;
   }  [@@deriving sexp]
 
+  module Set : Set.S with type elt := t
+  module Map : Map.S with type key := t
+  module Table : Hashtbl.S with type key := t
+
   val hash : t -> int
   val compare : t -> t -> int
 

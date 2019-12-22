@@ -86,17 +86,26 @@ module Order = struct
 end
 
 module Pair = struct
-  type t = {
-    base: string ;
-    quote: string ;
-  } [@@deriving sexp]
+  module T = struct
+    type t = {
+      base: string ;
+      quote: string ;
+    } [@@deriving sexp]
 
-  let hash = Hashtbl.hash
+    let hash = Hashtbl.hash
 
-  let compare { base ; quote } { base = base' ; quote = quote' } =
-    match String.compare base base' with
-    | 0 -> String.compare quote quote'
-    | n -> n
+    let compare { base ; quote } { base = base' ; quote = quote' } =
+      match String.compare base base' with
+      | 0 -> String.compare quote quote'
+      | n -> n
+
+    let equal { base; quote } { base = b2 ; quote = q2 } =
+      String.equal base quote && String.equal b2 q2
+  end
+  include T
+  module Set = Set.Make(T)
+  module Map = Map.Make(T)
+  module Table = Hashtbl.Make(T)
 
   let pp ppf { base ; quote } =
     Format.fprintf ppf "t%s%s" base quote
