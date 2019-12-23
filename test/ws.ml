@@ -14,9 +14,9 @@ let process_user_cmd w =
       let cid = Random.int32 Int32.max_value in
       Pipe.write w (Ping cid)
     | ["trades" ; symbol ] ->
-      Pipe.write w (Subscribe (Trades (Pair.of_string_exn symbol)))
+      Pipe.write w (Subscribe (Trades (Pair.of_string_noprefix_exn symbol)))
     | ["quotes" ; symbol ] ->
-      Pipe.write w (Subscribe (Quotes (Pair.of_string_exn symbol)))
+      Pipe.write w (Subscribe (Quotes (Pair.of_string_noprefix_exn symbol)))
     | ["unsubscribe" ; chanId] ->
       Pipe.write w (Unsubscribe (Int.of_string chanId))
     | h :: _ ->
@@ -31,18 +31,15 @@ let process_user_cmd w =
   loop ()
 
 let main () =
-  Bfx_ws_async.with_connection `Public begin fun r w ->
+  let open Bfx_ws_async in
+  with_connection_exn begin fun r w ->
     don't_wait_for (process_user_cmd w) ;
     Deferred.all_unit [
       Pipe.iter r ~f:begin fun msg ->
-        Log_async.app begin fun m ->
-          m "%a" Sexplib.Sexp.pp_hum (sexp_of_t msg)
-        end
+        Log_async.app (fun m -> m "%a" Sexplib.Sexp.pp_hum (sexp_of_t msg))
       end
     ]
-  end >>= function
-  | Error _ -> failwith "error"
-  | Ok () -> Deferred.unit
+  end
 
 let cmd =
   Command.async ~summary:"BFX shell" begin
