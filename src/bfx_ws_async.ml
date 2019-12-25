@@ -31,23 +31,28 @@ module T = struct
 end
 include T
 
+let create_client_read ?buf r =
+  Pipe.map r ~f:begin fun msg ->
+    Yojson_encoding.destruct_safe encoding
+      (Yojson.Safe.from_string ?buf msg)
+  end
+
+let create_client_write ?buf w =
+  Pipe.create_writer begin fun ws_read ->
+    Pipe.transfer ws_read w ~f:begin fun cmd ->
+      let doc = Yojson.Safe.to_string ?buf
+          (Yojson_encoding.construct encoding cmd) in
+      Log.debug (fun m -> m "-> %s" doc) ;
+      doc
+    end
+  end
+
 let connect ?buf url =
   Deferred.Or_error.map
     (Fastws_async.EZ.connect url) ~f:begin fun { r; w; _ } ->
-      let client_read = Pipe.map r ~f:begin fun msg ->
-          Yojson_encoding.destruct_safe encoding
-            (Yojson.Safe.from_string ?buf msg)
-        end in
-      let client_write = Pipe.create_writer begin fun ws_read ->
-          Pipe.transfer ws_read w ~f:begin fun cmd ->
-            let doc = Yojson.Safe.to_string ?buf
-                (Yojson_encoding.construct encoding cmd) in
-            Log.debug (fun m -> m "-> %s" doc) ;
-            doc
-          end
-        end in
+      let client_write = create_client_write ?buf w in
       (Pipe.closed client_write >>> fun () -> Pipe.close w) ;
-      { r = client_read; w = client_write }
+      { r = create_client_read r; w = client_write }
     end
 
 module Persistent = struct
@@ -64,19 +69,7 @@ let connect_exn ?buf url =
 
 let with_connection ?buf ?(url=public_url) f =
   Fastws_async.EZ.with_connection url ~f:begin fun r w ->
-    let client_read = Pipe.map r ~f:begin fun msg ->
-        Yojson_encoding.destruct_safe encoding
-          (Yojson.Safe.from_string ?buf msg)
-      end in
-    let ws_read, client_write = Pipe.create () in
-    don't_wait_for @@
-    Pipe.transfer ws_read w ~f:begin fun cmd ->
-      let doc = Yojson.Safe.to_string ?buf
-          (Yojson_encoding.construct encoding cmd) in
-      Log.debug (fun m -> m "-> %s" doc) ;
-      doc
-    end ;
-    f client_read client_write
+    f (create_client_read ?buf r) (create_client_write ?buf w)
   end
 
 let with_connection_exn ?buf ?url f =
