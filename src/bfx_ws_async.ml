@@ -49,7 +49,7 @@ let create_client_write ?buf w =
 
 let connect ?buf url =
   Deferred.Or_error.map
-    (Fastws_async.EZ.connect url) ~f:begin fun { r; w; _ } ->
+    (Fastws_async.connect url) ~f:begin fun { r; w; _ } ->
       let client_write = create_client_write ?buf w in
       (Pipe.closed client_write >>> fun () -> Pipe.close w) ;
       { r = create_client_read r; w = client_write }
@@ -68,7 +68,7 @@ let connect_exn ?buf url =
   | Ok a -> return a
 
 let with_connection ?buf ?(url=public_url) f =
-  Fastws_async.EZ.with_connection url ~f:begin fun r w ->
+  Fastws_async.with_connection url ~f:begin fun r w ->
     f (create_client_read ?buf r) (create_client_write ?buf w)
   end
 
