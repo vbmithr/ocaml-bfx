@@ -33,7 +33,7 @@ let process_user_cmd w =
 let main () =
   let open Bfx_ws_async in
   Fastws_async.with_connection
-    ~rd:(of_string) ~wr:(to_string) Bfx_ws.public_url ~f:begin fun _st r w ->
+    ~of_string:of_string ~to_string Bfx_ws.public_url ~f:begin fun _st r w ->
     don't_wait_for (process_user_cmd w) ;
     Deferred.all_unit [
       Pipe.iter r ~f:begin fun msg ->
