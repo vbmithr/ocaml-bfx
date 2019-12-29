@@ -1,31 +1,13 @@
 open Core
 open Async
 
-val public_url : Uri.t
-val auth_url   : Uri.t
-
-type t = {
-  r: Bfx_ws.t Pipe.Reader.t ;
-  w: Bfx_ws.t Pipe.Writer.t ;
-}
-
-val connect     : ?buf:Bi_outbuf.t -> Uri.t -> t Deferred.Or_error.t
-val connect_exn : ?buf:Bi_outbuf.t -> Uri.t -> t Deferred.t
-
-val with_connection :
-  ?buf:Bi_outbuf.t -> ?url:Uri.t ->
-  (Bfx_ws.t Pipe.Reader.t -> Bfx_ws.t Pipe.Writer.t -> 'a Deferred.t) ->
-  'a Deferred.Or_error.t
-
-val with_connection_exn :
-  ?buf:Bi_outbuf.t -> ?url:Uri.t ->
-  (Bfx_ws.t Pipe.Reader.t -> Bfx_ws.t Pipe.Writer.t -> 'a Deferred.t) ->
-  'a Deferred.t
+val of_string : ?buf:Bi_outbuf.t -> string -> Bfx_ws.t
+val to_string : ?buf:Bi_outbuf.t -> Bfx_ws.t -> string
 
 module Persistent : sig
   include Persistent_connection_kernel.S
     with type address = Uri.t
-     and type conn = t
+     and type conn = (Bfx_ws.t, Bfx_ws.t) Fastws_async.t
 
   val create' :
     server_name:string ->

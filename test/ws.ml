@@ -32,7 +32,8 @@ let process_user_cmd w =
 
 let main () =
   let open Bfx_ws_async in
-  with_connection_exn begin fun r w ->
+  Fastws_async.with_connection
+    ~rd:(of_string) ~wr:(to_string) Bfx_ws.public_url ~f:begin fun _st r w ->
     don't_wait_for (process_user_cmd w) ;
     Deferred.all_unit [
       Pipe.iter r ~f:begin fun msg ->
@@ -48,7 +49,7 @@ let cmd =
       let () = Logs_async_reporter.set_level_via_param [] in
       fun () ->
         Logs.set_reporter (Logs_async_reporter.reporter ()) ;
-        main ()
+        Deferred.Or_error.ok_exn (main ())
     ]
   end
 

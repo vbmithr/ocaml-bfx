@@ -1,6 +1,9 @@
 open Sexplib.Std
 open Bfx
 
+let public_url = Uri.make ~scheme:"https" ~host:"api-pub.bitfinex.com" ~path:"ws/2" ()
+let auth_url = Uri.make ~scheme:"https" ~host:"api.bitfinex.com" ~path:"ws/2" ()
+
 module Info_message = struct
   module Code = struct
     type t =

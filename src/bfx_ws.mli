@@ -1,5 +1,8 @@
 open Bfx
 
+val public_url : Uri.t
+val auth_url   : Uri.t
+
 module Info_message : sig
   module Code : sig
     type t =

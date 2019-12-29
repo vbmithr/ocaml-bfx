@@ -19,10 +19,6 @@ end
  *   List.Assoc.find_exn ~equal:String.equal
  *     (Sexplib.Sexp.load_sexp_conv_exn default_cfg Cfg.t_of_sexp) "BFX" *)
 
-let () =
-  Logs.set_reporter (Logs_async_reporter.reporter ()) ;
-  Logs.set_level (Some Debug)
-
 let wrap_request ?(speed=`Quick) n service =
   (* let auth = {
    *   Fastrest.key = cfg.Cfg.key ;
@@ -41,6 +37,8 @@ let rest = [
 ]
 
 let () =
+  Logs.set_reporter (Logs_async_reporter.reporter ()) ;
+  Logs.set_level (Some Debug) ;
   Alcotest.run "bitfinex" [
     "rest", rest ;
   ]
