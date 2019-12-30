@@ -38,17 +38,3 @@
    yojson
    ocplib-json-typed
    async-uri))
-
-(library
- (name        bfx_ws_async)
- (public_name bfx-ws-async)
- (modules bfx_ws_async)
- (preprocess (pps ppx_sexp_conv))
- (libraries
-   bfx
-   bfx-ws
-   logs-async
-   core
-   async
-   async-uri
-   fastws-async))

@@ -31,7 +31,6 @@ let process_user_cmd w =
   loop ()
 
 let main () =
-  let open Bfx_ws_async in
   Fastws_async.with_connection
     ~of_string:of_string ~to_string Bfx_ws.public_url ~f:begin fun _st r w ->
     don't_wait_for (process_user_cmd w) ;
