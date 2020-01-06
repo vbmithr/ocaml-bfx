@@ -27,9 +27,7 @@ let wrap_request ?(speed=`Quick) n service =
    * } in *)
   Alcotest_async.test_case
     ~timeout:(Time.Span.of_int_sec 10) n speed begin fun () ->
-    Fastrest.request service >>= function
-    | Ok _v -> Deferred.unit
-    | Error _ -> failwith ""
+    Deferred.ignore_m (Fastrest.request service)
   end
 
 let rest = [
