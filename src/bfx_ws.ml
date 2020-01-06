@@ -74,14 +74,14 @@ let ping_encoding =
   conv (fun i -> (), i) (fun ((), i) -> i)
     (obj2
        (req "event" (constant "ping"))
-       (req "cid" int32))
+       (req "cid" float))
 
 let pong_encoding =
   let open Json_encoding in
   conv (fun (cid, ts) -> (), cid, ts) (fun ((), cid, ts) -> cid, ts)
     (obj3
        (req "event" (constant "pong"))
-       (req "cid" int32)
+       (req "cid" float)
        (req "ts" Ptime.encoding))
 
 type feed =
@@ -243,8 +243,8 @@ type t =
   | Version of version
   | Error of error
   | Info of Info_message.t
-  | Ping of int32
-  | Pong of int32 * Ptime.t
+  | Ping of float
+  | Pong of float * Ptime.t
   | Subscribe of feed
   | Unsubscribe of int
   | Subscribed of int * feed

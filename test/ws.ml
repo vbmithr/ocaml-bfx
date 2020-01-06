@@ -11,8 +11,8 @@ let process_user_cmd w =
   let process s =
     match String.split s ~on:' ' with
     | ["ping"] ->
-      let cid = Random.int32 Int32.max_value in
-      Pipe.write w (Ping cid)
+      let now = Time_ns.(now () |> to_span_since_epoch |> Span.to_sec) in
+      Pipe.write w (Ping now)
     | ["trades" ; symbol ] ->
       Pipe.write w (Subscribe (Trades (Pair.of_string_noprefix_exn symbol)))
     | ["quotes" ; symbol ] ->

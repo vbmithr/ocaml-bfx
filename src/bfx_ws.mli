@@ -58,8 +58,8 @@ type t =
   | Version of version
   | Error of error
   | Info of Info_message.t
-  | Ping of int32
-  | Pong of int32 * Ptime.t
+  | Ping of float
+  | Pong of float * Ptime.t
   | Subscribe of feed
   | Unsubscribe of int
   | Subscribed of int * feed
