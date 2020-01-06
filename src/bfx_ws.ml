@@ -256,6 +256,8 @@ type t =
   | Quote of int * Quote.t
 [@@deriving sexp]
 
+let subscribe feed = Subscribe feed
+
 let encoding =
   let open Json_encoding in
   union [
