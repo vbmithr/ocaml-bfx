@@ -1,0 +1,21 @@
+opam-version: "2.0"
+authors: "Vincent Bernardoff <vb@luminar.eu.org>"
+maintainer: "Vincent Bernardoff <vb@luminar.eu.org>"
+homepage: "https://github.com/vbmithr/ocaml-bfx"
+bug-reports: "https://github.com/vbmithr/ocaml-bfx/issues"
+dev-repo: "git+https://github.com/vbmithr/ocaml-bfx"
+doc: "https://vbmithr.github.io/ocaml-bfx/doc"
+build: [ "dune" "build" "-j" jobs "-p" name ]
+run-test: [ "dune" "runtest" "-j" jobs "-p" name ]
+depends: [
+  "dune" {>= "1.11.4"}
+  "bfx" {= version}
+  "uri" {>= "3.1.0"}
+  "ocplib-json-typed" {>= "0.7.1"}
+  "fastrest" {= version}
+  "alcotest-async" {with-test & >= "0.8.5"}
+  "logs-async-reporter" {with-test & = version}
+]
+synopsis: "BFX API"
+description: """
+"""

@@ -1,8 +1,6 @@
 open Bfx
 open Json_encoding
 
-(* let src = Logs.Src.create "bfx.rest" *)
-
 let public_url =
   Uri.make ~scheme:"https" ~host:"api-pub.bitfinex.com" ()
 

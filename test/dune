@@ -14,8 +14,8 @@
  (package bfx-ws)
  (preprocess (pps ppx_let ppx_sexp_conv))
  (libraries
+   bfx-ws
    core
    async
    fastws-async
-   logs-async-reporter
-   bfx-ws))
+   logs-async-reporter))

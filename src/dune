@@ -18,11 +18,8 @@
  (modules bfx_rest)
  (preprocess (pps ppx_sexp_conv))
  (libraries
-   logs-async
    bfx
-   core
-   async
-   yojson
+   uri
    ocplib-json-typed
    fastrest))
 
@@ -32,9 +29,9 @@
  (modules bfx_ws)
  (preprocess (pps ppx_sexp_conv))
  (libraries
+   bfx
+   sexplib
    uuidm
    ptime
-   bfx
    yojson
-   ocplib-json-typed
-   async-uri))
+   ocplib-json-typed))
