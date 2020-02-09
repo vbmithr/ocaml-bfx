@@ -33,5 +33,4 @@
    sexplib
    uuidm
    ptime
-   yojson
    ocplib-json-typed))

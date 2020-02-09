@@ -304,6 +304,3 @@ let encoding =
       (function Quote (chanId, quote) -> Some (chanId, quote) | _ -> None)
       (fun (chanId, quote) -> Quote (chanId, quote)) ;
   ]
-
-let of_string ?buf msg = Yojson_encoding.destruct_safe encoding (Yojson.Safe.from_string ?buf msg)
-let to_string ?buf cmd = Yojson.Safe.to_string ?buf (Yojson_encoding.construct encoding cmd)

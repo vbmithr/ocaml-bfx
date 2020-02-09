@@ -74,7 +74,3 @@ type t =
 val subscribe : feed -> t
 
 val encoding : t Json_encoding.encoding
-val of_string : ?buf:Bi_outbuf.t -> string -> t
-val to_string : ?buf:Bi_outbuf.t -> t -> string
-
-
