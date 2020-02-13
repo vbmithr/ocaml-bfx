@@ -13,8 +13,7 @@ depends: [
   "uri" {>= "3.1.0"}
   "ocplib-json-typed" {>= "0.7.1"}
   "fastrest" {= version}
-  "alcotest-async" {with-test & >= "0.8.5"}
-  "logs-async-reporter" {with-test & = version}
+  "alcotest-async" {with-test & >= "1.0.0"}
 ]
 synopsis: "BFX API"
 description: """

@@ -5,8 +5,7 @@
  (preprocess (pps ppx_let ppx_sexp_conv))
  (libraries
   bfx-rest
-  alcotest-async
-  logs-async-reporter))
+  alcotest-async))
 
 (executable
  (name ws)
